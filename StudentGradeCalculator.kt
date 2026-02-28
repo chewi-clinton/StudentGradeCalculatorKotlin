@@ -29,6 +29,23 @@ fun printGrades(students: List<Student>) {
     }
 }
 
+// Step 5: Function to input a student from the terminal
+fun inputStudent(): Student {
+    print("Enter student name: ")
+    val name = readLine()?.trim() ?: ""
+
+    print("Enter scores separated by commas (e.g. 85,92,78): ")
+    val input = readLine()?.trim()
+
+    val scores = if (input.isNullOrEmpty()) {
+        null
+    } else {
+        input.split(",").mapNotNull { it.trim().toIntOrNull() }
+    }
+
+    return Student(name, scores)
+}
+
 // Step 4: Main function with sample data
 fun main() {
     val students = listOf(
