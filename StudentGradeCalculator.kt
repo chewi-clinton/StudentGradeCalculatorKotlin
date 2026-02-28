@@ -14,3 +14,17 @@ fun getGrade(average: Double): String {
         else -> "F"
     }
 }
+
+// Step 3: Function to print grades for a list of students
+fun printGrades(students: List<Student>) {
+    for (student in students) {
+        val scores = student.scores
+        if (scores == null || scores.isEmpty()) {
+            println("${student.name}: No scores available")
+        } else {
+            val average = scores.average()
+            val grade = getGrade(average)
+            println("${student.name}: Average = ${"%.1f".format(average)}, Grade = $grade")
+        }
+    }
+}
