@@ -28,3 +28,17 @@ fun printGrades(students: List<Student>) {
         }
     }
 }
+
+// Step 4: Main function with sample data
+fun main() {
+    val students = listOf(
+        Student("Alice", listOf(85, 92, 78, 90)),
+        Student("Bob", listOf(55, 63, 48, 70)),
+        Student("Charlie", null),
+        Student("Diana", listOf(95, 98, 100, 92)),
+        Student("Eve", listOf(72, 68, 74, 65))
+    )
+
+    println("=== Student Grade Report ===")
+    printGrades(students)
+}
