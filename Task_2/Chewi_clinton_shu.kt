@@ -57,6 +57,67 @@ fun getStudentAverages(students: List<Student>): List<Pair<String, Double>> {
     }
 }
 
+// Calculate class total using fold
+fun calculateClassTotal(students: List<Student>): Double {
+    return getValidStudents(students).fold(0.0) { acc, student ->
+        acc + student.scores!!.average()
+    }
+}
+
+// Calculate class average using fold and count
+fun calculateClassAverage(students: List<Student>): Double {
+    val valid = getValidStudents(students)
+    if (valid.isEmpty()) return 0.0
+    val total = valid.fold(0.0) { acc, student -> acc + student.scores!!.average() }
+    return total / valid.size
+}
+
+// Sort students by average score using sortedBy/sortedByDescending
+fun getStudentsSortedByAverage(students: List<Student>, ascending: Boolean = true): List<Student> {
+    val valid = getValidStudents(students)
+    return if (ascending) {
+        valid.sortedBy { it.scores!!.average() }
+    } else {
+        valid.sortedByDescending { it.scores!!.average() }
+    }
+}
+
+// Find top N students using sortedByDescending and take
+fun getTopStudents(students: List<Student>, n: Int): List<Student> {
+    return getValidStudents(students)
+        .sortedByDescending { it.scores!!.average() }
+        .take(n)
+}
+
+// Find students at risk (below passing average of 60) using filter
+fun getAtRiskStudents(students: List<Student>): List<Student> {
+    return getValidStudents(students).filter { it.scores!!.average() < 60.0 }
+}
+
+// Print class statistics
+fun printClassStatistics(students: List<Student>) {
+    val valid = getValidStudents(students)
+    if (valid.isEmpty()) {
+        println("No valid student data available.")
+        return
+    }
+
+    val classAvg = calculateClassAverage(students)
+    val highest = valid.maxByOrNull { it.scores!!.average() }
+    val lowest = valid.minByOrNull { it.scores!!.average() }
+
+    println("Class Average: ${"%.1f".format(classAvg)}")
+    println("Total Students: ${students.size} (${valid.size} with scores)")
+    highest?.let { println("Highest: ${it.name} (${"%.1f".format(it.scores!!.average())})") }
+    lowest?.let { println("Lowest: ${it.name} (${"%.1f".format(it.scores!!.average())})") }
+
+    val atRisk = getAtRiskStudents(students)
+    if (atRisk.isNotEmpty()) {
+        println("At-risk students (avg < 60):")
+        atRisk.forEach { println("  - ${it.name}: ${"%.1f".format(it.scores!!.average())}") }
+    }
+}
+
 // Input a student from the terminal
 fun inputStudent(): Student {
     print("Enter student name: ")
@@ -266,7 +327,10 @@ fun main() {
         println("4. Create sample Excel file")
         println("5. Filter students by grade")
         println("6. View student averages")
-        println("7. Exit")
+        println("7. View class statistics")
+        println("8. View ranked students")
+        println("9. View top students")
+        println("10. Exit")
         print("Choose an option: ")
 
         when (readLine()?.trim()) {
@@ -314,6 +378,28 @@ fun main() {
                 }
             }
             "7" -> {
+                println("\n=== Class Statistics ===")
+                printClassStatistics(students)
+            }
+            "8" -> {
+                println("\n=== Students Ranked by Average (Highest to Lowest) ===")
+                val ranked = getStudentsSortedByAverage(students, ascending = false)
+                ranked.forEachIndexed { index, student ->
+                    val avg = student.scores!!.average()
+                    println("${index + 1}. ${student.name}: ${"%.1f".format(avg)} (${getGrade(avg)})")
+                }
+            }
+            "9" -> {
+                print("How many top students to show? ")
+                val n = readLine()?.trim()?.toIntOrNull() ?: 3
+                val top = getTopStudents(students, n)
+                println("\n=== Top $n Students ===")
+                top.forEachIndexed { index, student ->
+                    val avg = student.scores!!.average()
+                    println("${index + 1}. ${student.name}: ${"%.1f".format(avg)} (${getGrade(avg)})")
+                }
+            }
+            "10" -> {
                 println("Goodbye!")
                 return
             }
