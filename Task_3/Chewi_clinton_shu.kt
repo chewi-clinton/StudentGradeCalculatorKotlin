@@ -1,7 +1,8 @@
 // ==========================================
 // Task 3: Object-Oriented Grade Calculator
 // Demonstrates: Classes, Constructors, Inheritance,
-// Abstract Classes, Data Classes, Visibility Modifiers
+// Abstract Classes, Data Classes, Interfaces,
+// Sealed Classes, Companion Objects, Visibility Modifiers
 // ==========================================
 
 // --- Data Class: holds assessment info ---
@@ -123,4 +124,120 @@ class Teacher(
     }
 
     override fun toString(): String = "$name (Teacher, $department)"
+}
+
+// --- Interface: Gradable - defines grading behavior ---
+interface Gradable {
+    fun calculateAverage(): Double
+    fun getGrade(): String
+    fun isPassing(): Boolean = calculateAverage() >= 60.0
+}
+
+// --- Interface: Exportable - defines export behavior ---
+interface Exportable {
+    fun toCSV(): String
+    fun toSummaryString(): String
+}
+
+// --- Class implementing multiple interfaces ---
+class CourseResult(
+    val studentName: String,
+    val courseName: String,
+    private val scores: List<Int>
+) : Gradable, Exportable {
+
+    override fun calculateAverage(): Double {
+        if (scores.isEmpty()) return 0.0
+        return scores.average()
+    }
+
+    override fun getGrade(): String {
+        val avg = calculateAverage()
+        return when {
+            avg >= 90 -> "A"
+            avg >= 80 -> "B"
+            avg >= 70 -> "C"
+            avg >= 60 -> "D"
+            else -> "F"
+        }
+    }
+
+    override fun toCSV(): String =
+        "$studentName,$courseName,${"%.1f".format(calculateAverage())},${getGrade()}"
+
+    override fun toSummaryString(): String =
+        "$studentName - $courseName: ${"%.1f".format(calculateAverage())}% (${getGrade()})"
+
+    override fun toString(): String = toSummaryString()
+}
+
+// --- Sealed Class: represents grade evaluation result ---
+sealed class GradeResult {
+    data class Passed(val studentName: String, val grade: String, val average: Double) : GradeResult()
+    data class Failed(val studentName: String, val average: Double, val deficit: Double) : GradeResult()
+    data class Incomplete(val studentName: String, val reason: String) : GradeResult()
+    object NoData : GradeResult()
+}
+
+// Exhaustive when handling for sealed class
+fun handleGradeResult(result: GradeResult): String = when (result) {
+    is GradeResult.Passed -> "${result.studentName} passed with ${result.grade} (${"%.1f".format(result.average)}%)"
+    is GradeResult.Failed -> "${result.studentName} failed (${"%.1f".format(result.average)}%) - needs ${"%.1f".format(result.deficit)} more points"
+    is GradeResult.Incomplete -> "${result.studentName}: Incomplete - ${result.reason}"
+    GradeResult.NoData -> "No grade data available"
+}
+
+// Evaluate a student and return a sealed class result
+fun evaluateStudent(student: Student): GradeResult {
+    if (student.getAssessments().isEmpty()) {
+        return GradeResult.Incomplete(student.name, "No assessments submitted")
+    }
+    val avg = student.calculateAverage()
+    return if (avg >= 60.0) {
+        GradeResult.Passed(student.name, student.getGrade(), avg)
+    } else {
+        GradeResult.Failed(student.name, avg, 60.0 - avg)
+    }
+}
+
+// --- Companion Object: GradeCalculator utility ---
+class GradeCalculator private constructor() {
+    companion object {
+        const val PASSING_THRESHOLD = 60.0
+        const val HONOR_ROLL_THRESHOLD = 85.0
+
+        fun fromScore(score: Int, maxScore: Int = 100): String {
+            val percentage = (score.toDouble() / maxScore) * 100
+            return when {
+                percentage >= 90 -> "A"
+                percentage >= 80 -> "B"
+                percentage >= 70 -> "C"
+                percentage >= 60 -> "D"
+                else -> "F"
+            }
+        }
+
+        fun isHonorRoll(average: Double): Boolean = average >= HONOR_ROLL_THRESHOLD
+
+        fun createReport(people: List<Person>): String {
+            val sb = StringBuilder()
+            sb.appendLine("=== Grade Calculator Report ===")
+            sb.appendLine("Total people: ${people.size}")
+
+            val students = people.filterIsInstance<Student>()
+            val teachers = people.filterIsInstance<Teacher>()
+
+            sb.appendLine("Students: ${students.size}")
+            sb.appendLine("Teachers: ${teachers.size}")
+
+            if (students.isNotEmpty()) {
+                val avgOfAll = students.filter { it.getAssessments().isNotEmpty() }
+                    .map { it.calculateAverage() }
+                    .average()
+                sb.appendLine("Class Average: ${"%.1f".format(avgOfAll)}%")
+            }
+
+            return sb.toString()
+        }
+    }
 }
