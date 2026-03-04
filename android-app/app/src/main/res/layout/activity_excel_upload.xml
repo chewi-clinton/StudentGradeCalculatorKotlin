@@ -125,6 +125,15 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- Generate Sample Button -->
+            <Button
+                android:id="@+id/btnGenerateSample"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                style="@style/SecondaryButton"
+                android:text="@string/generate_sample"
+                android:layout_marginBottom="20dp" />
+
             <!-- Results Card -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/resultsCard"

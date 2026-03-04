@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +15,8 @@ import com.gradecalculator.model.Student
 import com.gradecalculator.model.SubjectScore
 import org.apache.poi.ss.usermodel.CellType
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import java.io.File
+import java.io.FileOutputStream
 
 class ExcelUploadActivity : AppCompatActivity() {
 
@@ -44,6 +47,8 @@ class ExcelUploadActivity : AppCompatActivity() {
         binding.btnCalculateGrades.setOnClickListener {
             selectedFileUri?.let { processExcelFile(it) }
         }
+
+        binding.btnGenerateSample.setOnClickListener { generateSampleExcel() }
     }
 
     private fun openFilePicker() {
@@ -72,27 +77,22 @@ class ExcelUploadActivity : AppCompatActivity() {
             val headerRow = sheet.getRow(0)
                 ?: throw Exception("Excel file is empty")
 
+            // Find the name column (first column or one labeled name/student)
             var nameCol = -1
-            var marksStartCol = -1
-            var marksEndCol = -1
-
             for (i in 0 until headerRow.lastCellNum) {
                 val cell = headerRow.getCell(i) ?: continue
                 val header = cell.toString().trim().lowercase()
-                when {
-                    header == "name" || header == "student name" || header == "student" -> nameCol = i
-                    header.contains("mark") || header.contains("score") || header.contains("subject") ||
-                    header.contains("math") || header.contains("science") || header.contains("english") -> {
-                        if (marksStartCol == -1) marksStartCol = i
-                        marksEndCol = i
-                    }
+                if (header == "name" || header == "student name" || header == "student") {
+                    nameCol = i
+                    break
                 }
             }
-
             if (nameCol == -1) nameCol = 0
-            if (marksStartCol == -1) {
-                marksStartCol = 1
-                marksEndCol = headerRow.lastCellNum.toInt() - 1
+
+            // All other numeric columns are scores
+            val scoreCols = mutableListOf<Int>()
+            for (i in 0 until headerRow.lastCellNum) {
+                if (i != nameCol) scoreCols.add(i)
             }
 
             processedStudents.clear()
@@ -103,16 +103,15 @@ class ExcelUploadActivity : AppCompatActivity() {
                 val studentName = row.getCell(nameCol)?.toString()?.trim() ?: "Unknown"
 
                 val scores = mutableListOf<SubjectScore>()
-                for (col in marksStartCol..marksEndCol) {
+                for ((scoreIndex, col) in scoreCols.withIndex()) {
                     val cell = row.getCell(col)
-                    val subjectName = headerRow.getCell(col)?.toString()?.trim() ?: "Subject $col"
                     if (cell != null) {
                         val value = when (cell.cellType) {
                             CellType.NUMERIC -> cell.numericCellValue.toInt()
                             CellType.STRING -> cell.toString().trim().toIntOrNull() ?: 0
                             else -> 0
                         }
-                        scores.add(SubjectScore(subjectName, value))
+                        scores.add(SubjectScore("Score ${scoreIndex + 1}", value))
                     }
                 }
 
@@ -120,7 +119,8 @@ class ExcelUploadActivity : AppCompatActivity() {
                 processedStudents.add(student)
 
                 if (student.hasScores) {
-                    sb.appendLine("${student.name}: Avg = ${"%.1f".format(student.average)}, Grade = ${student.grade}")
+                    val scoresStr = student.scores.joinToString(", ") { "${it.score}" }
+                    sb.appendLine("${student.name}: [$scoresStr] Avg = ${"%.1f".format(student.average)}, Grade = ${student.grade}")
                 } else {
                     sb.appendLine("${student.name}: No scores")
                 }
@@ -136,6 +136,50 @@ class ExcelUploadActivity : AppCompatActivity() {
 
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun generateSampleExcel() {
+        try {
+            val workbook = XSSFWorkbook()
+            val sheet = workbook.createSheet("Students")
+
+            // Header row: Name, Score 1, Score 2, Score 3, Score 4, Score 5
+            val headerRow = sheet.createRow(0)
+            headerRow.createCell(0).setCellValue("Name")
+            for (i in 1..5) {
+                headerRow.createCell(i).setCellValue("Score $i")
+            }
+
+            // Sample student data
+            val sampleData = listOf(
+                arrayOf("Alice Johnson", 92, 88, 95, 78, 90),
+                arrayOf("Bob Smith", 75, 82, 68, 71, 80),
+                arrayOf("Carol White", 65, 58, 72, 60, 55),
+                arrayOf("David Brown", 88, 91, 85, 93, 87),
+                arrayOf("Eva Martinez", 45, 52, 38, 60, 48)
+            )
+
+            for ((index, data) in sampleData.withIndex()) {
+                val row = sheet.createRow(index + 1)
+                row.createCell(0).setCellValue(data[0] as String)
+                for (i in 1..5) {
+                    row.createCell(i).setCellValue((data[i] as Int).toDouble())
+                }
+            }
+
+            // Save to Downloads folder
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val file = File(downloadsDir, "sample_students.xlsx")
+            val outputStream = FileOutputStream(file)
+            workbook.write(outputStream)
+            outputStream.close()
+            workbook.close()
+
+            Toast.makeText(this, "Sample saved to Downloads/sample_students.xlsx", Toast.LENGTH_LONG).show()
+
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error creating sample: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 }

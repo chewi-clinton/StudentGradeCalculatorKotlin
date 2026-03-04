@@ -32,6 +32,7 @@
     <string name="tap_to_browse">Tap to browse or select Excel file</string>
     <string name="calculate_grades">Calculate Grades</string>
     <string name="supported_formats">Supported: .xlsx files</string>
+    <string name="generate_sample">Generate Sample Excel</string>
 
     <!-- General -->
     <string name="back">Back</string>
