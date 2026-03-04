@@ -241,3 +241,120 @@ class GradeCalculator private constructor() {
         }
     }
 }
+
+// ==========================================
+// Main: demonstrates all OOP features
+// ==========================================
+fun main() {
+    // --- 1. Creating instances using constructors ---
+    println("=== Creating People ===")
+
+    val student1 = Student("Alice", 20, "STU001")
+    val student2 = Student("Bob", 22, "STU002")
+    val student3 = Student("Charlie", 19, "STU003")
+
+    val gradStudent = GraduateStudent(
+        "Diana", 25, "GRD001",
+        thesisTopic = "Machine Learning in Education",
+        advisor = "Prof. Smith"
+    )
+
+    val teacher = Teacher("Prof. Smith", 45, "TCH001", "Computer Science")
+    teacher.addCourse("SE 3242: Android Development")
+    teacher.addCourse("CS 101: Intro to Programming")
+
+    // --- 2. Adding assessments to students ---
+    println("\n=== Adding Assessments ===")
+
+    student1.addAssessment(Assessment("Math", 92))
+    student1.addAssessment(Assessment("Science", 88))
+    student1.addAssessment(Assessment("English", 95))
+
+    student2.addAssessment(Assessment("Math", 45))
+    student2.addAssessment(Assessment("Science", 52))
+    student2.addAssessment(Assessment("English", 58))
+
+    gradStudent.addAssessment(Assessment("Research Methods", 91))
+    gradStudent.addAssessment(Assessment("Advanced AI", 87))
+    gradStudent.addAssessment(Assessment("Thesis Draft", 42, 50))
+
+    println("Assessments added for ${student1.name}, ${student2.name}, and ${gradStudent.name}")
+    println("${student3.name} has no assessments (will test Incomplete case)")
+
+    // --- 3. Polymorphism: store different subclasses in one collection ---
+    println("\n=== Polymorphism: Displaying All People ===")
+
+    val people: List<Person> = listOf(student1, student2, student3, gradStudent, teacher)
+
+    people.forEach { person ->
+        println("---")
+        person.displayInfo()
+    }
+
+    // --- 4. Using data class features (toString, copy, destructuring) ---
+    println("\n=== Data Class Features ===")
+
+    val assessment = Assessment("Physics", 85, 100)
+    println("toString: $assessment")
+
+    val adjusted = assessment.copy(score = 90)
+    println("copy with adjusted score: $adjusted")
+
+    val (subject, score, maxScore) = assessment
+    println("Destructuring: subject=$subject, score=$score, maxScore=$maxScore")
+
+    // --- 5. Sealed class: evaluating students ---
+    println("\n=== Sealed Class: Grade Evaluation ===")
+
+    val students = listOf(student1, student2, student3, gradStudent)
+    val results: List<GradeResult> = students.map { evaluateStudent(it) }
+
+    results.forEach { result ->
+        println(handleGradeResult(result))
+    }
+
+    // Test NoData case
+    println(handleGradeResult(GradeResult.NoData))
+
+    // --- 6. Interfaces: CourseResult with multiple interfaces ---
+    println("\n=== Interfaces: CourseResult ===")
+
+    val courseResults = listOf(
+        CourseResult("Alice", "Math", listOf(92, 88, 95)),
+        CourseResult("Bob", "Math", listOf(45, 52, 58)),
+        CourseResult("Diana", "Research", listOf(91, 87, 84))
+    )
+
+    println("Summary:")
+    courseResults.forEach { println("  ${it.toSummaryString()}") }
+
+    println("\nCSV Export:")
+    println("  Name,Course,Average,Grade")
+    courseResults.forEach { println("  ${it.toCSV()}") }
+
+    println("\nPassing check (default interface method):")
+    courseResults.forEach {
+        println("  ${it.studentName}: ${if (it.isPassing()) "Passing" else "Not Passing"}")
+    }
+
+    // --- 7. Companion object usage ---
+    println("\n=== Companion Object: GradeCalculator ===")
+
+    println("Grade from score 85: ${GradeCalculator.fromScore(85)}")
+    println("Grade from score 42/50: ${GradeCalculator.fromScore(42, 50)}")
+    println("Passing threshold: ${GradeCalculator.PASSING_THRESHOLD}")
+    println("Honor roll threshold: ${GradeCalculator.HONOR_ROLL_THRESHOLD}")
+
+    println("\nHonor roll check:")
+    students.filter { it.getAssessments().isNotEmpty() }.forEach { s ->
+        val avg = s.calculateAverage()
+        println("  ${s.name}: ${"%.1f".format(avg)}% - ${if (GradeCalculator.isHonorRoll(avg)) "Honor Roll" else "Regular"}")
+    }
+
+    // --- 8. Companion object report ---
+    println("\n${GradeCalculator.createReport(people)}")
+
+    // --- 9. Polymorphism with overridden toString ---
+    println("=== Polymorphism: toString() ===")
+    people.forEach { println(it) }
+}
