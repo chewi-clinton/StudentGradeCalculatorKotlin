@@ -524,6 +524,246 @@ class AddStudentPanel(private val onAdd: (Student) -> Unit) : JPanel() {
 
             onAdd(Student(name, scores))
             nameField.text = ""
+            scoresField.text = ""
+            statusLabel.foreground = AppColors.success
+            statusLabel.text = "$name added successfully!"
+        }
+
+        val wrapper = JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+            isOpaque = false
+            add(formCard)
+        }
+        add(wrapper, BorderLayout.CENTER)
+    }
+}
+
+// ==================== EXCEL PANEL ====================
+class ExcelPanel(private val onImport: (List<Student>) -> Unit) : JPanel() {
+    private val resultArea = JTextArea().apply {
+        font = Font("Monospaced", Font.PLAIN, 13)
+        foreground = AppColors.textPrimary
+        background = AppColors.surfaceLight
+        caretColor = AppColors.purpleLight
+        isEditable = false
+        lineWrap = true
+        wrapStyleWord = true
+        border = EmptyBorder(15, 15, 15, 15)
+    }
+
+    init {
+        background = AppColors.background
+        layout = BorderLayout(0, 20)
+        border = EmptyBorder(30, 30, 30, 30)
+
+        add(JLabel("Excel Import / Export").apply {
+            font = Font("SansSerif", Font.BOLD, 28)
+            foreground = AppColors.textPrimary
+        }, BorderLayout.NORTH)
+
+        val actionsCard = RoundedPanel().apply {
+            layout = FlowLayout(FlowLayout.LEFT, 15, 15)
+            border = EmptyBorder(15, 20, 15, 20)
+        }
+
+        val uploadBtn = PurpleButton("Upload Excel File")
+        val sampleBtn = PurpleButton("Generate Sample", false)
+
+        actionsCard.add(uploadBtn)
+        actionsCard.add(sampleBtn)
+        actionsCard.add(JLabel("Upload a .xlsx file with student names and marks").apply {
+            font = Font("SansSerif", Font.ITALIC, 13)
+            foreground = AppColors.textSecondary
+        })
+
+        val resultScroll = JScrollPane(resultArea).apply {
+            border = BorderFactory.createLineBorder(AppColors.purpleAccent, 1, true)
+            preferredSize = Dimension(0, 300)
+        }
+
+        val resultCard = RoundedPanel().apply {
+            layout = BorderLayout(0, 10)
+            border = EmptyBorder(15, 15, 15, 15)
+            add(JLabel("Results").apply {
+                font = Font("SansSerif", Font.BOLD, 16)
+                foreground = AppColors.textPrimary
+            }, BorderLayout.NORTH)
+            add(resultScroll, BorderLayout.CENTER)
+        }
+
+        val centerPanel = JPanel(BorderLayout(0, 15)).apply {
+            isOpaque = false
+            add(actionsCard, BorderLayout.NORTH)
+            add(resultCard, BorderLayout.CENTER)
+        }
+        add(centerPanel, BorderLayout.CENTER)
+
+        uploadBtn.addActionListener { uploadExcel() }
+        sampleBtn.addActionListener { generateSample() }
+    }
+
+    private fun uploadExcel() {
+        val chooser = JFileChooser().apply {
+            fileFilter = FileNameExtensionFilter("Excel Files (*.xlsx)", "xlsx")
+            dialogTitle = "Select Excel File"
+        }
+
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            val file = chooser.selectedFile
+            processExcelFile(file)
+        }
+    }
+
+    private fun processExcelFile(file: File) {
+        try {
+            val workbook = XSSFWorkbook(FileInputStream(file))
+            val sheet = workbook.getSheetAt(0)
+            val headerRow = sheet.getRow(0) ?: run {
+                resultArea.text = "Error: Excel file is empty."
+                workbook.close()
+                return
+            }
+
+            var nameCol = -1
+            var marksStartCol = -1
+            var marksEndCol = -1
+
+            for (i in 0 until headerRow.lastCellNum) {
+                val cell = headerRow.getCell(i) ?: continue
+                val header = cell.toString().trim().lowercase()
+                when {
+                    header == "name" || header == "student name" || header == "student" -> nameCol = i
+                    header.contains("mark") || header.contains("score") || header.contains("subject") -> {
+                        if (marksStartCol == -1) marksStartCol = i
+                        marksEndCol = i
+                    }
+                }
+            }
+
+            if (nameCol == -1) nameCol = 0
+            if (marksStartCol == -1) {
+                marksStartCol = 1
+                marksEndCol = headerRow.lastCellNum.toInt() - 1
+            }
+
+            val avgCol = marksEndCol + 1
+            val gradeCol = marksEndCol + 2
+            headerRow.createCell(avgCol).setCellValue("Average")
+            headerRow.createCell(gradeCol).setCellValue("Grade")
+
+            val headerStyle = workbook.createCellStyle()
+            val headerFont = workbook.createFont()
+            headerFont.bold = true
+            headerStyle.setFont(headerFont)
+            headerRow.getCell(avgCol).cellStyle = headerStyle
+            headerRow.getCell(gradeCol).cellStyle = headerStyle
+
+            val importedStudents = mutableListOf<Student>()
+            val sb = StringBuilder("=== Excel Processing Results ===\n\n")
+
+            for (i in 1..sheet.lastRowNum) {
+                val row = sheet.getRow(i) ?: continue
+                val studentName = row.getCell(nameCol)?.toString()?.trim() ?: "Unknown"
+
+                val marks = mutableListOf<Int>()
+                for (col in marksStartCol..marksEndCol) {
+                    val cell = row.getCell(col)
+                    if (cell != null) {
+                        val value = when (cell.cellType) {
+                            CellType.NUMERIC -> cell.numericCellValue.toInt()
+                            CellType.STRING -> cell.toString().trim().toIntOrNull() ?: 0
+                            else -> 0
+                        }
+                        marks.add(value)
+                    }
+                }
+
+                if (marks.isNotEmpty()) {
+                    val average = marks.average()
+                    val grade = getGrade(average)
+                    row.createCell(avgCol).setCellValue(average)
+                    row.createCell(gradeCol).setCellValue(grade)
+                    sb.appendLine("$studentName: Average = ${"%.1f".format(average)}, Grade = $grade")
+                    importedStudents.add(Student(studentName, marks))
+                } else {
+                    row.createCell(avgCol).setCellValue("N/A")
+                    row.createCell(gradeCol).setCellValue("N/A")
+                    sb.appendLine("$studentName: No scores available")
+                }
+            }
+
+            for (col in 0..gradeCol) {
+                sheet.autoSizeColumn(col)
+            }
+
+            val outputFile = File(file.parent, file.nameWithoutExtension + "_graded.xlsx")
+            FileOutputStream(outputFile).use { workbook.write(it) }
+            workbook.close()
+
+            sb.appendLine("\nGraded file saved to: ${outputFile.absolutePath}")
+            sb.appendLine("\n${importedStudents.size} students imported into the app.")
+            resultArea.text = sb.toString()
+
+            if (importedStudents.isNotEmpty()) {
+                onImport(importedStudents)
+            }
+
+        } catch (e: Exception) {
+            resultArea.text = "Error processing file: ${e.message}"
+        }
+    }
+
+    private fun generateSample() {
+        val chooser = JFileChooser().apply {
+            selectedFile = File("sample_students.xlsx")
+            dialogTitle = "Save Sample Excel File"
+        }
+
+        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            var outFile = chooser.selectedFile
+            if (!outFile.name.endsWith(".xlsx")) {
+                outFile = File(outFile.absolutePath + ".xlsx")
+            }
+
+            val workbook = XSSFWorkbook()
+            val sheet = workbook.createSheet("Students")
+
+            val headerStyle = workbook.createCellStyle()
+            val headerFont = workbook.createFont()
+            headerFont.bold = true
+            headerStyle.setFont(headerFont)
+
+            val headerRow = sheet.createRow(0)
+            listOf("Name", "Math", "Science", "English").forEachIndexed { i, h ->
+                headerRow.createCell(i).apply {
+                    setCellValue(h)
+                    cellStyle = headerStyle
+                }
+            }
+
+            val sampleData = listOf(
+                listOf("Alice", 85, 92, 78),
+                listOf("Bob", 55, 63, 70),
+                listOf("Charlie", 95, 98, 100),
+                listOf("Diana", 72, 68, 74)
+            )
+
+            sampleData.forEachIndexed { rowIdx, data ->
+                val row = sheet.createRow(rowIdx + 1)
+                row.createCell(0).setCellValue(data[0] as String)
+                for (j in 1 until data.size) {
+                    row.createCell(j).setCellValue((data[j] as Int).toDouble())
+                }
+            }
+
+            for (i in 0..3) sheet.autoSizeColumn(i)
+
+            FileOutputStream(outFile).use { workbook.write(it) }
+            workbook.close()
+
+            resultArea.text = "Sample Excel file created at:\n${outFile.absolutePath}\n\nYou can now upload it using the 'Upload Excel File' button."
+        }
+    }
+}
 
 // ==================== MAIN APPLICATION ====================
 class GradeCalculatorApp : JFrame("Grade Calculator") {
@@ -545,6 +785,7 @@ class GradeCalculatorApp : JFrame("Grade Calculator") {
         minimumSize = Dimension(900, 600)
         setLocationRelativeTo(null)
         contentPane.background = AppColors.background
+
         layout = BorderLayout()
 
         val sidebar = Sidebar { page -> navigateTo(page) }
@@ -564,6 +805,10 @@ class GradeCalculatorApp : JFrame("Grade Calculator") {
             students.add(student)
             refreshPanels()
         }, "add")
+        contentPanel.add(ExcelPanel { imported ->
+            students.addAll(imported)
+            refreshPanels()
+        }, "excel")
     }
 
     private fun navigateTo(page: String) {
