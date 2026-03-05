@@ -324,6 +324,109 @@ class DashboardPanel(private val students: List<Student>) : JPanel() {
                 }
                 val countLabel = JLabel("${counts[i]}", SwingConstants.CENTER).apply {
                     font = Font("SansSerif", Font.PLAIN, 12)
+                    foreground = AppColors.textSecondary
+                }
+
+                barPanel.add(bar, BorderLayout.CENTER)
+                barPanel.add(label, BorderLayout.SOUTH)
+                barPanel.add(countLabel, BorderLayout.NORTH)
+                barsPanel.add(barPanel)
+            }
+            add(barsPanel, BorderLayout.CENTER)
+        }
+    }
+}
+
+// ==================== STUDENT LIST PANEL ====================
+class StudentListPanel(private val students: List<Student>) : JPanel() {
+    init {
+        background = AppColors.background
+        layout = BorderLayout(0, 20)
+        border = EmptyBorder(30, 30, 30, 30)
+
+        add(JLabel("All Students").apply {
+            font = Font("SansSerif", Font.BOLD, 28)
+            foreground = AppColors.textPrimary
+        }, BorderLayout.NORTH)
+
+        val columns = arrayOf("Name", "Scores", "Average", "Grade")
+        val data = students.map { s ->
+            arrayOf<Any>(
+                s.name,
+                s.scores?.joinToString(", ") ?: "N/A",
+                if (s.hasScores) "${"%.1f".format(s.average)}" else "N/A",
+                if (s.hasScores) s.grade else "N/A"
+            )
+        }.toTypedArray()
+
+        val model = object : DefaultTableModel(data, columns) {
+            override fun isCellEditable(row: Int, column: Int) = false
+        }
+
+        val table = JTable(model).apply {
+            font = Font("SansSerif", Font.PLAIN, 14)
+            foreground = AppColors.textPrimary
+            background = AppColors.cardBg
+            selectionBackground = AppColors.purpleDark
+            selectionForeground = Color.WHITE
+            gridColor = AppColors.surfaceLight
+            rowHeight = 45
+            setShowGrid(true)
+            setShowHorizontalLines(true)
+            setShowVerticalLines(false)
+            intercellSpacing = Dimension(0, 1)
+
+            // Center alignment for Average and Grade columns
+            val centerRenderer = DefaultTableCellRenderer().apply {
+                horizontalAlignment = SwingConstants.CENTER
+                background = AppColors.cardBg
+                foreground = AppColors.textPrimary
+            }
+            columnModel.getColumn(2).cellRenderer = centerRenderer
+
+            // Grade column with color
+            columnModel.getColumn(3).cellRenderer = object : DefaultTableCellRenderer() {
+                override fun getTableCellRendererComponent(
+                    table: JTable, value: Any?, isSelected: Boolean,
+                    hasFocus: Boolean, row: Int, column: Int
+                ): Component {
+                    val comp = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
+                    horizontalAlignment = SwingConstants.CENTER
+                    font = Font("SansSerif", Font.BOLD, 14)
+                    if (!isSelected) {
+                        foreground = if (value != "N/A") getGradeColor(value.toString()) else AppColors.textSecondary
+                        background = AppColors.cardBg
+                    }
+                    return comp
+                }
+            }
+        }
+
+        // Style header
+        table.tableHeader.apply {
+            font = Font("SansSerif", Font.BOLD, 14)
+            background = AppColors.purpleDark
+            foreground = Color.WHITE
+            preferredSize = Dimension(preferredSize.width, 45)
+            (this as JTableHeader).defaultRenderer = object : DefaultTableCellRenderer() {
+                override fun getTableCellRendererComponent(
+                    table: JTable, value: Any?, isSelected: Boolean,
+                    hasFocus: Boolean, row: Int, column: Int
+                ): Component {
+                    val comp = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
+                    background = AppColors.purpleDark
+                    foreground = Color.WHITE
+                    font = Font("SansSerif", Font.BOLD, 14)
+                    horizontalAlignment = SwingConstants.CENTER
+                    border = EmptyBorder(10, 10, 10, 10)
+                    return comp
+                }
+            }
+        }
+
+        val scrollPane = JScrollPane(table).apply {
+            border = BorderFactory.createEmptyBorder()
+            background = AppColors.cardBg
 
 // ==================== MAIN APPLICATION ====================
 class GradeCalculatorApp : JFrame("Grade Calculator") {
@@ -359,6 +462,7 @@ class GradeCalculatorApp : JFrame("Grade Calculator") {
     private fun refreshPanels() {
         contentPanel.removeAll()
         contentPanel.add(DashboardPanel(students), "dashboard")
+        contentPanel.add(StudentListPanel(students), "students")
     }
 
     private fun navigateTo(page: String) {
