@@ -110,6 +110,110 @@ class StyledTextField(columns: Int = 20) : JTextField(columns) {
     }
 }
 
+// ==================== SIDEBAR ====================
+class Sidebar(private val onNavigate: (String) -> Unit) : JPanel() {
+    private var activeItem = "dashboard"
+
+    init {
+        preferredSize = Dimension(220, 0)
+        background = AppColors.surface
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        border = EmptyBorder(20, 0, 20, 0)
+
+        val titlePanel = JPanel(FlowLayout(FlowLayout.CENTER)).apply {
+            background = AppColors.surface
+            maximumSize = Dimension(220, 80)
+            val icon = JLabel("\u2b23").apply {
+                font = Font("SansSerif", Font.BOLD, 28)
+                foreground = AppColors.purpleLight
+            }
+            val title = JLabel("Grade Calc").apply {
+                font = Font("SansSerif", Font.BOLD, 18)
+                foreground = AppColors.textPrimary
+            }
+            add(icon)
+            add(title)
+        }
+        add(titlePanel)
+        add(Box.createVerticalStrut(30))
+
+        addNavItem("dashboard", "\u25a3  Dashboard")
+        addNavItem("students", "\u263a  Students")
+        addNavItem("add", "\u002b  Add Student")
+        addNavItem("excel", "\u2b06  Excel Import")
+
+        add(Box.createVerticalGlue())
+    }
+
+    private fun addNavItem(id: String, label: String) {
+        val item = object : JPanel() {
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                if (activeItem == id) {
+                    g2.color = AppColors.purpleDark
+                    g2.fillRoundRect(8, 2, width - 16, height - 4, 10, 10)
+                }
+                g2.dispose()
+                super.paintComponent(g)
+            }
+        }.apply {
+            isOpaque = false
+            layout = FlowLayout(FlowLayout.LEFT, 20, 10)
+            maximumSize = Dimension(220, 48)
+            preferredSize = Dimension(220, 48)
+            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+
+            val lbl = JLabel(label).apply {
+                font = Font("SansSerif", if (activeItem == id) Font.BOLD else Font.PLAIN, 14)
+                foreground = if (activeItem == id) AppColors.purpleLight else AppColors.textSecondary
+            }
+            add(lbl)
+
+            addMouseListener(object : MouseAdapter() {
+                override fun mouseClicked(e: MouseEvent) {
+                    activeItem = id
+                    onNavigate(id)
+                    this@Sidebar.removeAll()
+                    this@Sidebar.revalidate()
+                    this@Sidebar.repaint()
+                    rebuildSidebar()
+                }
+            })
+        }
+        add(item)
+    }
+
+    private fun rebuildSidebar() {
+        removeAll()
+        border = EmptyBorder(20, 0, 20, 0)
+
+        val titlePanel = JPanel(FlowLayout(FlowLayout.CENTER)).apply {
+            background = AppColors.surface
+            maximumSize = Dimension(220, 80)
+            add(JLabel("\u2b23").apply {
+                font = Font("SansSerif", Font.BOLD, 28)
+                foreground = AppColors.purpleLight
+            })
+            add(JLabel("Grade Calc").apply {
+                font = Font("SansSerif", Font.BOLD, 18)
+                foreground = AppColors.textPrimary
+            })
+        }
+        add(titlePanel)
+        add(Box.createVerticalStrut(30))
+
+        addNavItem("dashboard", "\u25a3  Dashboard")
+        addNavItem("students", "\u263a  Students")
+        addNavItem("add", "\u002b  Add Student")
+        addNavItem("excel", "\u2b06  Excel Import")
+
+        add(Box.createVerticalGlue())
+        revalidate()
+        repaint()
+    }
+}
+
 // ==================== MAIN APPLICATION ====================
 class GradeCalculatorApp : JFrame("Grade Calculator") {
     private val students = mutableListOf(
@@ -120,6 +224,10 @@ class GradeCalculatorApp : JFrame("Grade Calculator") {
         Student("Eve", listOf(72, 68, 74, 65))
     )
 
+    private val contentPanel = JPanel(CardLayout()).apply {
+        background = AppColors.background
+    }
+
     init {
         defaultCloseOperation = EXIT_ON_CLOSE
         size = Dimension(1100, 700)
@@ -128,10 +236,13 @@ class GradeCalculatorApp : JFrame("Grade Calculator") {
         contentPane.background = AppColors.background
         layout = BorderLayout()
 
-        add(JLabel("Grade Calculator - Building UI...", SwingConstants.CENTER).apply {
-            font = Font("SansSerif", Font.BOLD, 28)
-            foreground = AppColors.textPrimary
-        }, BorderLayout.CENTER)
+        val sidebar = Sidebar { page -> navigateTo(page) }
+        add(sidebar, BorderLayout.WEST)
+        add(contentPanel, BorderLayout.CENTER)
+    }
+
+    private fun navigateTo(page: String) {
+        (contentPanel.layout as CardLayout).show(contentPanel, page)
     }
 }
 
