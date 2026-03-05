@@ -29,8 +29,26 @@ fun printGrades(students: List<Student>) {
     }
 }
 
+// Input a student from the terminal
+fun inputStudent(): Student {
+    print("Enter student name: ")
+    val name = readLine()?.trim() ?: ""
+
+    print("Enter scores separated by commas (e.g. 85,92,78): ")
+    val input = readLine()?.trim()
+
+    val scores = if (input.isNullOrEmpty()) {
+        null
+    } else {
+        input.split(",").mapNotNull { it.trim().toIntOrNull() }
+    }
+
+    return Student(name, scores)
+}
+
+// Main function with interactive menu
 fun main() {
-    val students = listOf(
+    val students = mutableListOf(
         Student("Alice", listOf(85, 92, 78, 90)),
         Student("Bob", listOf(55, 63, 48, 70)),
         Student("Charlie", null),
@@ -38,6 +56,28 @@ fun main() {
         Student("Eve", listOf(72, 68, 74, 65))
     )
 
-    println("=== Student Grade Report ===")
-    printGrades(students)
+    while (true) {
+        println("\n=== Student Grade Calculator ===")
+        println("1. View all grades")
+        println("2. Add a new student")
+        println("3. Exit")
+        print("Choose an option: ")
+
+        when (readLine()?.trim()) {
+            "1" -> {
+                println("\n=== Student Grade Report ===")
+                printGrades(students)
+            }
+            "2" -> {
+                val student = inputStudent()
+                students.add(student)
+                println("${student.name} added successfully!")
+            }
+            "3" -> {
+                println("Goodbye!")
+                return
+            }
+            else -> println("Invalid option. Please try again.")
+        }
+    }
 }
