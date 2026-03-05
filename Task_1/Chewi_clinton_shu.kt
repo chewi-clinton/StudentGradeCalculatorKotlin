@@ -169,6 +169,58 @@ fun processExcelFile(inputPath: String): String {
     return outputPath
 }
 
+// Create a sample Excel file for testing
+fun createSampleExcel(): String {
+    val workbook = XSSFWorkbook()
+    val sheet = workbook.createSheet("Students")
+
+    // Header style
+    val headerStyle = workbook.createCellStyle()
+    val headerFont = workbook.createFont()
+    headerFont.bold = true
+    headerStyle.setFont(headerFont)
+
+    // Create headers
+    val headerRow = sheet.createRow(0)
+    val headers = listOf("Name", "Math", "Science", "English")
+    for ((i, header) in headers.withIndex()) {
+        val cell = headerRow.createCell(i)
+        cell.setCellValue(header)
+        cell.cellStyle = headerStyle
+    }
+
+    // Sample data
+    val sampleData = listOf(
+        listOf("Alice", 85, 92, 78),
+        listOf("Bob", 55, 63, 70),
+        listOf("Charlie", 95, 98, 100),
+        listOf("Diana", 72, 68, 74)
+    )
+
+    for ((rowIdx, data) in sampleData.withIndex()) {
+        val row = sheet.createRow(rowIdx + 1)
+        row.createCell(0).setCellValue(data[0] as String)
+        for (j in 1 until data.size) {
+            row.createCell(j).setCellValue((data[j] as Int).toDouble())
+        }
+    }
+
+    // Auto-size columns
+    for (i in headers.indices) {
+        sheet.autoSizeColumn(i)
+    }
+
+    val jarDir = File(object {}.javaClass.protectionDomain.codeSource.location.toURI()).parentFile
+    val outputFile = File(jarDir, "sample_students.xlsx")
+    val outputStream = FileOutputStream(outputFile)
+    workbook.write(outputStream)
+    outputStream.close()
+    workbook.close()
+
+    println("Sample Excel file created: ${outputFile.absolutePath}")
+    return outputFile.absolutePath
+}
+
 // Main function with interactive menu
 fun main() {
     val students = mutableListOf(
