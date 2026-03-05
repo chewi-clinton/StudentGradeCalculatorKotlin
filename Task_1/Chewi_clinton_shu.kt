@@ -15,9 +15,29 @@ fun getGrade(average: Double): String {
     }
 }
 
+// Print grades for a list of students
+fun printGrades(students: List<Student>) {
+    for (student in students) {
+        val scores = student.scores
+        if (scores == null || scores.isEmpty()) {
+            println("${student.name}: No scores available")
+        } else {
+            val average = scores.average()
+            val grade = getGrade(average)
+            println("${student.name}: Average = ${"%.1f".format(average)}, Grade = $grade")
+        }
+    }
+}
+
 fun main() {
-    val student = Student("Alice", listOf(85, 92, 78, 90))
-    val average = student.scores?.average() ?: 0.0
-    val grade = getGrade(average)
-    println("${student.name}: Average = ${"%.1f".format(average)}, Grade = $grade")
+    val students = listOf(
+        Student("Alice", listOf(85, 92, 78, 90)),
+        Student("Bob", listOf(55, 63, 48, 70)),
+        Student("Charlie", null),
+        Student("Diana", listOf(95, 98, 100, 92)),
+        Student("Eve", listOf(72, 68, 74, 65))
+    )
+
+    println("=== Student Grade Report ===")
+    printGrades(students)
 }
